@@ -1,59 +1,97 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+// app/_layout.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Stack, router, useRootNavigationState, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { ActivityIndicator, View } from 'react-native';
+import 'react-native-url-polyfill/auto';
+import { supabase } from '../src/services/supabase';
+import { useAuthStore } from '../src/stores/authStore';
 
-import { useColorScheme } from '@/components/useColorScheme';
+// (SỬA) 1. Import các hook và component cần thiết
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// (SỬA) 2. Ngăn Splash Screen tự động ẩn
 SplashScreen.preventAutoHideAsync();
 
+const queryClient = new QueryClient();
+
+// Hook bảo vệ (giữ nguyên)
+const useAuthProtection = () => {
+  const segments = useSegments();
+  const navigationState = useRootNavigationState();
+  
+  const session = useAuthStore((state) => state.session);
+  const isReady = useAuthStore((state) => state.isReady);
+  
+  const inAuthGroup = segments[0] === '(auth)';
+
+  useEffect(() => {
+    if (!isReady || !navigationState?.key) return;
+    if (!session && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
+  }, [session, isReady, inAuthGroup, navigationState?.key]);
+};
+
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
+  // (SỬA) 3. Tải font chữ
+  const [fontsLoaded, fontError] = useFonts({
+    // Đặt tên cho font (ví dụ 'SpaceMono') và trỏ đến file của bạn
+    'SVN-Bold': require('../assets/fonts/SVN-Times New Roman Bold.ttf'),
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+  // (SỬA) 4. Lấy state Auth
+  const setSession = useAuthStore((state) => state.setSession);
+  const markReady = useAuthStore((state) => state.markReady);
+  const isReady = useAuthStore((state) => state.isReady);
 
+  // (SỬA) 5. Gọi hook bảo vệ
+  useAuthProtection(); 
+
+  // (SỬA) 6. Logic Auth (giữ nguyên)
   useEffect(() => {
-    if (loaded) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    }).finally(() => {
+      markReady(); 
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+        }
+      }
+    );
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []); 
+  
+  // (SỬA) 7. Logic ẩn Splash Screen (giữ nguyên)
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [fontsLoaded, fontError]);
 
-  if (!loaded) {
-    return null;
+  // (SỬA) 8. Logic Loading
+  // Phải chờ cả Auth (isReady) VÀ Font (fontsLoaded)
+  if (!isReady || (!fontsLoaded && !fontError)) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FF6B35" />
+      </View>
+    );
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
+  // (SỬA) 9. Return JSX (Đã gộp RootLayoutNav vào đây)
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
       </Stack>
-    </ThemeProvider>
+    </QueryClientProvider>
   );
 }

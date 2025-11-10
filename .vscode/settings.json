@@ -3,5 +3,13 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  
+  // === CÀI ĐẶT DENO ===
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": true,
+  "deno.enablePaths": [
+    "supabase/functions" // <-- LỖI CỦA BẠN Ở ĐÂY: Dòng này PHẢI nằm trong dấu ngoặc vuông []
+  ]
 }
