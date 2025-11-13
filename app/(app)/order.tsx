@@ -184,7 +184,8 @@ export default function OrderScreen() {
     if (itemsToPrint.size === 0) {
       Alert.alert('Thông báo', 'Đã lưu. Không có món mới để in bếp.');
     } else {
-      printKitchenBill(tableName!, itemsToPrint, menu, settings.shopName);
+      // (SỬA): Truyền toàn bộ settings thay vì chỉ shopName
+      printKitchenBill(tableName!, itemsToPrint, menu, settings); 
     }
     setPrintedItems(new Map(draftItems));
   };
@@ -316,7 +317,7 @@ export default function OrderScreen() {
 // 7. === STYLES ===
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9f9f9', paddingTop: 50 },
-  contentContainer: { paddingHorizontal: 16, paddingBottom: 16 },
+  contentContainer: { paddingHorizontal: 16, paddingBottom: 100 },
   title: { fontSize: 26, fontWeight: 'bold', color: '#FF6B35', textAlign: 'center', marginBottom: 16, paddingHorizontal: 16 },
   search: { backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 12, fontSize: 16, elevation: 2, marginHorizontal: 16 },
   categoryList: { paddingHorizontal: 16, paddingBottom: 12 },

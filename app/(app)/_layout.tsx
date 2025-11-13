@@ -1,97 +1,98 @@
-// app/(app)/_layout.tsx
-import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
-import { Tabs, router } from 'expo-router'; // (SỬA) import router
-import React, { useEffect } from 'react';
-import { useAuthStore } from '../../src/stores/authStore';
+// D:/OcNaAppV2/app/(app)/_layout.tsx
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, Tabs } from 'expo-router';
+import React from 'react';
+// (SỬA) Import 'useAuth' (từ Context)
+import { ActivityIndicator, View } from 'react-native';
+import { useAuth } from '../../src/stores/authStore';
 
-// (MỚI) Hook bảo vệ cho riêng nhóm (app)
-function useAppAuthProtection() {
-  const session = useAuthStore((state) => state.session);
-  const isReady = useAuthStore((state) => state.isReady);
-
-  useEffect(() => {
-    // Chỉ chạy khi đã sẵn sàng
-    if (!isReady) return;
-
-    // Nếu vì lý do gì đó mà user ở trong (app)
-    // nhưng không có session -> đá về login
-    if (!session) {
-      router.replace('/(auth)/login');
-    }
-  }, [isReady, session]);
-}
+const TabBarIcon = ({ name, color }: { name: React.ComponentProps<typeof Ionicons>['name']; color: string }) => {
+  return <Ionicons size={28} style={{ marginBottom: -3 }} name={name} color={color} />;
+};
 
 export default function AppLayout() {
-  const role = useAuthStore((state) => state.role);
-  
-  // (MỚI) Gọi hook bảo vệ
-  useAppAuthProtection();
+  // (SỬA) Dùng hook 'useAuth'
+  const { session, role, isLoading } = useAuth();
+
+  // (SỬA) Khối 'if (isLoading)' sẽ chờ cho đến khi getSession() hoàn tất
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FF6B35" />
+      </View>
+    );
+  }
+
+  // Khối này chỉ chạy SAU KHI đã tải xong
+  if (!session) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: '#FF6B35',
-        headerStyle: { backgroundColor: '#FF6B35' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        tabBarInactiveTintColor: '#95a5a6',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarStyle: {
+          height: 60,
+          paddingBottom: 5,
+          paddingTop: 5,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#ecf0f1',
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Bàn',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="store" size={size} color={color} />
-          ),
+          title: 'Trang chủ',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="menu"
         options={{
           title: 'Thực đơn',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="restaurant-menu" size={size} color={color} />
-          ),
-          href: role === 'admin' ? '/(app)/menu' : null,
+          tabBarIcon: ({ color }) => <TabBarIcon name="restaurant-outline" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="report"
-        options={{
-          title: 'Báo cáo',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="bar-chart" size={size} color={color} />
-          ),
-          href: role === 'admin' ? '/(app)/report' : null,
-        }}
-      />
-      <Tabs.Screen
-        name="staff"
-        options={{
-          title: 'Nhân viên',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="users-cog" size={size} color={color} />
-          ),
-          href: role === 'admin' ? '/(app)/staff' : null,
-        }}
-      />
+      {role === 'admin' && (
+        <>
+          <Tabs.Screen
+            name="report"
+            options={{
+              title: 'Báo cáo',
+              tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart-outline" color={color} />,
+            }}
+          />
+          <Tabs.Screen
+            name="staff"
+            options={{
+              title: 'Nhân viên',
+              tabBarIcon: ({ color }) => <TabBarIcon name="people-outline" color={color} />,
+            }}
+          />
+        </>
+      )}
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Cài đặt',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="settings" size={size} color={color} />
-          ),
-          // Chỉ admin mới thấy
-          href: role === 'admin' ? '/(app)/settings' : null, 
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
         }}
       />
-      <Tabs.Screen 
+      <Tabs.Screen
         name="order" 
-        options={{ 
-          href: null, // Chỉ 1 dòng này là đủ
-        }} 
+        options={{
+          title: 'Đặt món',
+          href: null, // Ẩn khỏi Tab Bar
+        }}
       />
     </Tabs>
   );

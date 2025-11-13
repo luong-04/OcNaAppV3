@@ -1,4 +1,4 @@
-// app/(app)/home.tsx
+// D:/OcNaAppV2/app/(app)/home.tsx
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -12,108 +12,110 @@ import {
   TextInput,
   TouchableOpacity, View
 } from 'react-native';
-import { fetchActiveTables, loadTables, saveTables } from '../../src/api/homeApi';
+import { addTable, deleteTable, fetchActiveTables, loadTables } from '../../src/api/homeApi';
 import { supabase } from '../../src/services/supabase';
-import { useAuthStore } from '../../src/stores/authStore';
+// (SỬA) Import thêm AuthState
+import { AuthState, useAuthStore } from '../../src/stores/authStore';
 
 export default function HomeScreen() {
   const queryClient = useQueryClient();
-  const role = useAuthStore(state => state.role);
+  // (SỬA) Thêm type (state: AuthState)
+  const role = useAuthStore((state: AuthState) => state.role);
   
   const [modalVisible, setModalVisible] = useState(false);
   const [newTableName, setNewTableName] = useState('');
 
   // 1. === TANSTACK QUERY ===
-  // Lấy danh sách bàn CHÍNH từ AsyncStorage
   const { data: tables, isLoading: isLoadingTables } = useQuery({
     queryKey: ['tableList'],
-    queryFn: loadTables,
+    queryFn: loadTables, 
   });
 
-  // Lấy danh sách bàn ĐANG HOẠT ĐỘNG từ Supabase
-  // refetchInterval: Tự động hỏi lại server sau mỗi 5 giây
   const { data: activeTables } = useQuery({
     queryKey: ['activeTables'],
     queryFn: fetchActiveTables,
     refetchInterval: 5000, 
   });
   
-  // Mutation để LƯU danh sách bàn (sau khi thêm/xóa)
-  const saveTablesMutation = useMutation({
-    mutationFn: saveTables,
-    onSuccess: (updatedTables) => {
-      // Cập nhật cache 'tableList' với dữ liệu mới ngay lập tức
-      queryClient.setQueryData(['tableList'], updatedTables);
+  const addTableMutation = useMutation({
+    mutationFn: addTable, 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tableList'] });
     },
-    onError: (err) => Alert.alert('Lỗi', 'Không thể lưu danh sách bàn'),
+    onError: (err) => Alert.alert('Lỗi', `Không thể thêm bàn: ${err.message}`),
   });
 
-  // 2. === HÀM XỬ LÝ ===
+  const deleteTableMutation = useMutation({
+    mutationFn: deleteTable, 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tableList'] });
+    },
+    onError: (err) => Alert.alert('Lỗi', `Không thể xóa bàn: ${err.message}`),
+  });
+
+  // 2. === HÀM XỬ LÝ (HANDLERS) ===
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
-  const confirmAddTable = () => {
+  const handleAddTable = () => {
     const name = newTableName.trim();
     if (!name) {
       return Alert.alert('Lỗi', 'Tên bàn không được trống');
     }
-    if (tables?.includes(name)) {
+    if (tables?.includes(name)) { 
       return Alert.alert('Lỗi', 'Tên bàn đã tồn tại');
     }
     
-    const newTables = [...(tables || []), name].sort((a, b) => 
-      parseInt(a.replace('Bàn ', '')) - parseInt(b.replace('Bàn ', ''))
-    );
-    saveTablesMutation.mutate(newTables); // Gửi lên mutation
+    addTableMutation.mutate(name);
     
     setModalVisible(false);
     setNewTableName('');
   };
 
-  const deleteTable = (tableName: string) => {
+  const handleDeleteTable = (tableName: string) => {
     Alert.alert('Xóa bàn', `Bạn có chắc muốn xóa "${tableName}"?`, [
       { text: 'Hủy' },
       {
         text: 'Xóa',
         style: 'destructive',
         onPress: () => {
-          const newTables = tables?.filter(t => t !== tableName) || [];
-          saveTablesMutation.mutate(newTables);
+          deleteTableMutation.mutate(tableName); 
         }
       }
     ]);
   };
 
   // 3. === RENDER ===
-  // Ghi nhớ component, chỉ render lại khi activeTables thay đổi
   const renderTable = useMemo(() => ({ item }: { item: string }) => {
     const isActive = activeTables?.includes(item) || false;
     return (
       <TouchableOpacity
         style={[styles.table, isActive && styles.tableActive]}
-        onPress={() => router.push({ pathname: '/(app)/order', params: { tableName: item } })}
-        onLongPress={() => role === 'admin' && deleteTable(item)}
+        onPress={() => router.push({ 
+          pathname: '/order', // Bỏ (app)/
+          params: { tableName: item } 
+        })}
+        onLongPress={() => role === 'admin' && handleDeleteTable(item)} 
       >
-        {/* (SỬA) Thêm 2 thuộc tính này vào <Text> */}
         <Text 
           style={[styles.tableText, isActive && styles.tableTextActive]}
-          numberOfLines={2} // Cho phép hiển thị tối đa 2 dòng
-          adjustsFontSizeToFit // Tự động co nhỏ chữ nếu quá dài
+          numberOfLines={2} 
+          adjustsFontSizeToFit 
         >
           {item}
         </Text>
         {isActive && <Text style={styles.status}>Đang dùng</Text>}
       </TouchableOpacity>
     );
-  }, [activeTables, role]); // Phụ thuộc vào activeTables
+  }, [activeTables, role]);
 
   return (
     <View style={styles.container}>
       {/* HEADER: LOGO + ĐĂNG XUẤT */}
       <View style={styles.header}>
         <Image
-          source={require('../../assets/logo.png')} // Đảm bảo bạn có file logo.png trong /assets
+          source={require('../../assets/logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -124,7 +126,6 @@ export default function HomeScreen() {
 
       <Text style={styles.title}>Chọn bàn</Text>
       
-      {/* Nút "+ Thêm bàn" cho Admin */}
       {role === 'admin' && (
         <View style={styles.adminRow}>
           <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
@@ -133,7 +134,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* DANH SÁCH BÀN */}
       {isLoadingTables ? (
         <ActivityIndicator size="large" color="#FF6B35" />
       ) : (
@@ -143,7 +143,6 @@ export default function HomeScreen() {
           keyExtractor={item => item}
           contentContainerStyle={styles.grid}
           renderItem={renderTable}
-          // Quan trọng: Báo FlatList biết khi nào cần render lại
           extraData={activeTables} 
         />
       )}
@@ -162,7 +161,7 @@ export default function HomeScreen() {
             />
             <View style={styles.modalActions}>
               <Button title="Hủy" onPress={() => setModalVisible(false)} color="#999" />
-              <Button title="Thêm" onPress={confirmAddTable} color="#FF6B35" />
+              <Button title="Thêm" onPress={handleAddTable} color="#FF6B35" />
             </View>
           </View>
         </View>
@@ -171,7 +170,7 @@ export default function HomeScreen() {
   );
 }
 
-// === STYLES === (Lấy từ file gốc home.tsx của bạn)
+// === STYLES === (Giữ nguyên)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9f9f9', paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10, height: 60, },
