@@ -44,7 +44,7 @@ export const deleteMenuItem = async (id: number) => {
   const { error } = await supabase.from('menu_items').delete().eq('id', id);
   if (error) throw new Error(error.message);
 };
-export const upsertCategory = async (category: UpsertCategory) => {
+export const upsertCategory = async (category: Database['public']['Tables']['categories']['Insert']) => {
   const { data, error } = await supabase.from('categories').upsert(category).select();
   if (error) throw new Error(error.message);
   return data;

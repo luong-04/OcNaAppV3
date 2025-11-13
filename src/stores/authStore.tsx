@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { create } from 'zustand'; // (SỬA) Sửa lỗi 'in' thành 'from'
+import { supabase } from '../services/supabase';
 
 // (SỬA) Định nghĩa State cho Zustand
 export interface AuthState { // (SỬA) Export để home.tsx có thể dùng
@@ -34,11 +34,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Lấy session hiện tại khi app mở
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false); // Hoàn tất tải lần đầu
-    });
+    // (MỚI) Dùng async/await để có thể dùng try...finally
+    const fetchSession = async () => {
+      try {
+        // Lấy session hiện tại khi app mở
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (error) {
+        console.error('Lỗi khi lấy session:', error);
+        setSession(null); // Đảm bảo logout nếu có lỗi
+      } finally {
+        // (MỚI) Quan trọng: Luôn luôn gọi setIsLoading(false) dù thành công hay thất bại
+        setIsLoading(false); 
+      }
+    };
+
+    fetchSession(); // Gọi hàm async vừa tạo
 
     // Lắng nghe thay đổi (Login, Logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
