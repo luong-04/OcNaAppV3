@@ -2,6 +2,7 @@
   "expo": {
     "name": "Ốc Na Quán",
     "slug": "OcNaAppV2",
+    "scheme": "com.ocna.app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +17,6 @@
     },
     "android": {
       "package": "com.ocna.app",
-      "minSdkVersion": 23,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"

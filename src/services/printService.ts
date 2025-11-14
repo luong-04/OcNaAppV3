@@ -1,8 +1,9 @@
-// src/services/printService.ts (SỬA LỚN)
+// src/services/printService.ts
 import { Asset } from 'expo-asset';
 import * as DPrinting from 'expo-print';
 import QRCode from 'qrcode';
 import { Alert } from 'react-native';
+// SỬA 1: Import 'Printer' theo đúng v4
 import { Printer } from 'react-native-esc-pos-printer';
 import TcpSocket from 'react-native-tcp-socket';
 import { MenuItemWithCategory } from '../api/menuApi';
@@ -12,7 +13,6 @@ import { useSettingsStore } from '../stores/settingsStore';
 type Settings = ReturnType<typeof useSettingsStore.getState>;
 
 const getLogoUri = async (): Promise<string> => {
-// ... (Hàm này giữ nguyên)
   try {
     const logoAsset = Asset.fromModule(require('../../assets/logo.png')); 
     await logoAsset.downloadAsync();
@@ -24,7 +24,6 @@ const getLogoUri = async (): Promise<string> => {
 };
 
 const generateItemsHtml = (
-// ... (Hàm này giữ nguyên)
   itemsToPrint: Map<number, number>,
   menu: MenuItemWithCategory[]
 ) => {
@@ -46,31 +45,31 @@ const generateItemsHtml = (
 
 
 /**
- * (SỬA) Hàm in qua mạng LAN/WiFi (ESC/POS)
- * Nhận vào IP và Port cụ thể
+ * (SỬA) Hàm in qua mạng LAN/WiFi (ESC/POS) - Dùng cú pháp v4
  */
 const printEscPos = async (html: string, ip: string, port: string, width: number) => {
   const portNum = parseInt(port, 10);
 
-  // (SỬA) Kiểm tra IP và Port được truyền vào
   if (!ip || isNaN(portNum) || portNum <= 0 || portNum > 65535) {
     console.log("IP/Port không hợp lệ. Quay về in mặc định.");
     return DPrinting.printAsync({ html, width });
   }
 
   try {
+    // SỬA 2: Khởi tạo Printer theo v4
     const printer = new Printer({ 
-      target: 'UNKNOWN' as any,
-      deviceName: 'Dummy Network Printer',
+      target: 'UNKNOWN' as any, // 'UNKNOWN' là đúng vì chúng ta tự quản lý socket
+      deviceName: 'Network Printer',
     }); 
     
-    // (SỬA) Loại bỏ width khỏi options (fix lỗi runtime)
-    const buffer = await (printer as any).print(html, { 
+    // SỬA 3: Dùng hàm .printHTML() thay vì .print() cho HTML
+    const buffer = await (printer as any).printHTML(html, { 
       cut: true, 
       encoding: 'utf8', 
-      type: 'html', 
+      // 'type' và 'width' không có trong options của printHTML
     });
 
+    // Phần quản lý TcpSocket giữ nguyên
     return new Promise<void>((resolve, reject) => {
       const socket = TcpSocket.createConnection({ port: portNum, host: ip }, () => {
         socket.setTimeout(5000); 
@@ -111,8 +110,7 @@ const printEscPos = async (html: string, ip: string, port: string, width: number
 
 
 /**
- * (SỬA) In Hóa Đơn Bếp
- * Tự động chọn đúng máy in
+ * In Hóa Đơn Bếp
  */
 export const printKitchenBill = async (
   tableName: string,
@@ -138,24 +136,25 @@ export const printKitchenBill = async (
     </div>
   `;
   
-  // (SỬA) Logic chọn máy in
   const printerId = settings.kitchenPrinterId;
   if (!printerId) {
-    // Không chọn máy in -> Dùng in PDF mặc định
     console.log("In bếp: Dùng in PDF mặc định.");
     await DPrinting.printAsync({ html, width: 300 });
   } else {
-    // Chọn Máy in 1 hoặc 2
-    const printer = settings[printerId];
-    console.log(`In bếp: Dùng máy in ${printer.name} (${printer.ip})`);
-    await printEscPos(html, printer.ip, printer.port, 300);
+    const printerIpPort = settings[printerId as 'printer1' | 'printer2'];
+    // Tách chuỗi ra
+    const [ip, port] = printerIpPort.split(':');
+
+    console.log(`In bếp: Dùng máy in ${printerId} (${printerIpPort})`);
+
+    // SỬA 4: Truyền ip và port đã tách
+    await printEscPos(html, ip, port, 300); 
   }
 };
 
 
 /**
- * (SỬA) In Hóa Đơn Thanh Toán (Full)
- * Tự động chọn đúng máy in
+ * In Hóa Đơn Thanh Toán (Full)
  */
 export const printPaymentBill = async (
   tableName: string,
@@ -176,7 +175,6 @@ export const printPaymentBill = async (
   const itemsHtml = generateItemsHtml(orderItems, menu);
   const logoUri = await getLogoUri();
   
-  // ... (Logic tạo QR Code giữ nguyên)
   let qrCodeHtml = '';
   if (qrCodeData) {
     try {
@@ -187,7 +185,6 @@ export const printPaymentBill = async (
     }
   }
 
-  // ... (HTML bill giữ nguyên)
   const html = `
     <div style="padding:10px; font-family:Arial; width: 300px; margin:auto;">
       ${logoUri ? `<img src="${logoUri}" style="width: 150px; height: auto; margin: 0 auto; display: block;" />` : ''}
@@ -227,17 +224,20 @@ export const printPaymentBill = async (
     </div>
   `;
 
-  // (SỬA) Logic chọn máy in
   const printerId = settings.paymentPrinterId;
   if (!printerId) {
-    // Không chọn máy in -> Dùng in PDF mặc định
     console.log("In thanh toán: Dùng in PDF mặc định.");
     await DPrinting.printAsync({ html, width: 300 });
   } else {
-    // Chọn Máy in 1 hoặc 2
-    const printer = settings[printerId];
-    console.log(`In thanh toán: Dùng máy in ${printer.name} (${printer.ip})`);
-    await printEscPos(html, printer.ip, printer.port, 300);
+    // Lấy chuỗi IP:Port, ví dụ "192.168.1.100:9100"
+    const printerIpPort = settings[printerId as 'printer1' | 'printer2'];
+    // Tách chuỗi ra
+    const [ip, port] = printerIpPort.split(':');
+
+    console.log(`In thanh toán: Dùng máy in ${printerId} (${printerIpPort})`);
+
+    // SỬA 5: Truyền ip và port đã tách
+    await printEscPos(html, ip, port, 300);
   }
   
   onPaid?.();
