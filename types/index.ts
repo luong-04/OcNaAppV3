@@ -40,3 +40,9 @@ export const editStaffSchema = z.object({
   role: z.enum(['admin', 'staff']),
 });
 export type EditStaffSchema = z.infer<typeof editStaffSchema>;
+export interface Calculations {
+  subtotal: number;
+  discountAmount: number;
+  vatAmount: number;
+  finalTotal: number;
+}

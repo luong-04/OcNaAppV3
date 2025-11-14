@@ -2,13 +2,26 @@
 import { Database } from '../../types/supabase';
 import { supabase } from '../services/supabase';
 
+export interface MenuItem {
+  id: number;
+  name: string;
+  price: number;
+  category_id: number | null; // (SỬA) Cho phép null
+  categories: { // (SỬA) Thêm 'categories'
+    name: string;
+  } | null; 
+  category_name?: string; 
+}
+
 // Lấy kiểu 'Insert' từ types/supabase.ts (đã tạo ở Phần 1)
 export type UpsertMenuItem = Database['public']['Tables']['menu_items']['Insert'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 
 // Kiểu tùy chỉnh: Món ăn KÈM Tên Danh mục
 export type MenuItemWithCategory = Database['public']['Tables']['menu_items']['Row'] & {
-  categories: { name: string } | null;
+  categories: {
+    name: string;
+  } | null;
 };
 
 // === HÀM LẤY (GET) DỮ LIỆU ===
@@ -19,14 +32,22 @@ export const fetchCategories = async (): Promise<Category[]> => {
 };
 
 export const fetchMenuItems = async (): Promise<MenuItemWithCategory[]> => {
-  // Dùng "categories(name)" để Supabase tự động JOIN 2 bảng
   const { data, error } = await supabase
     .from('menu_items')
-    .select('*, categories (name)') 
-    .order('name');
-  
-  if (error) throw new Error(error.message);
-  return (data as MenuItemWithCategory[]) || [];
+    .select(`
+      id,
+      name,
+      price,
+      category_id,
+      categories ( name )
+    `);
+
+  if (error) {
+    console.error('Error fetching menu items:', error.message);
+    throw new Error(error.message);
+  }
+
+  return data as MenuItemWithCategory[];
 };
 
 // === HÀM THÊM/SỬA (CREATE/UPDATE) ===

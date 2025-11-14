@@ -1,219 +1,200 @@
-// D:/OcNaAppV2/app/(app)/settings.tsx
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import {
-  ScrollView, StyleSheet, Switch, Text, TextInput,
-  TouchableOpacity, View
-} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Alert, Button, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { useSettingsStore } from '../../src/stores/settingsStore';
-
-// (SỬA) Định nghĩa Props ở đây
-interface CollapsibleProps {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
-
-// Component Accordion (Thu gọn)
-const CollapsibleSection = ({ title, children, defaultOpen = false }: CollapsibleProps) => { // (SỬA) Sử dụng Props đã định nghĩa
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  return (
-    <View style={styles.formContainer}>
-      <TouchableOpacity style={styles.sectionHeader} onPress={() => setIsOpen(!isOpen)}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={24} color="#333" />
-      </TouchableOpacity>
-      {isOpen && (
-        <View style={styles.sectionContent}>
-          {children}
-        </View>
-      )}
-    </View>
-  );
-};
-
-// Component quản lý 1 máy in
-const PrinterSettings = ({ printerKey }: { printerKey: 'printer1' | 'printer2' }) => {
-  const printer = useSettingsStore(state => state[printerKey]);
-  const setPrinter = useSettingsStore(state => state.setPrinter);
-
-  const updateField = (field: 'name' | 'ip' | 'port', value: string) => {
-    setPrinter(printerKey, { ...printer, [field]: value });
-  };
-
-  return (
-    <View style={styles.printerBox}>
-      <Text style={styles.label}>Tên gợi nhớ (VD: Bếp)</Text>
-      <TextInput
-        style={styles.input}
-        value={printer.name}
-        onChangeText={(text) => updateField('name', text)}
-        placeholder="VD: Máy in Bếp"
-      />
-      <Text style={styles.label}>Địa chỉ IP (LAN/WiFi)</Text>
-      <TextInput
-        style={styles.input}
-        value={printer.ip}
-        onChangeText={(text) => updateField('ip', text)}
-        placeholder="VD: 192.168.1.100"
-        keyboardType="numbers-and-punctuation"
-      />
-      <Text style={styles.label}>Cổng kết nối (Port)</Text>
-      <TextInput
-        style={styles.input}
-        value={printer.port}
-        onChangeText={(text) => updateField('port', text)}
-        keyboardType="numeric"
-        placeholder="9100"
-      />
-    </View>
-  );
-};
-
-// Component chọn máy in cho chức năng
-const PrinterAssignment = ({ title, assignmentKey }: { title: string, assignmentKey: 'kitchenPrinterId' | 'paymentPrinterId' }) => {
-  const { p1Name, p2Name, value, setSettings } = useSettingsStore(useShallow(state => ({
-    p1Name: state.printer1.name,
-    p2Name: state.printer2.name,
-    value: state[assignmentKey],
-    setSettings: state.setSettings,
-  })));
-
-  const options = [
-    { id: null, label: 'Mặc định (In PDF/Chia sẻ)' },
-    { id: 'printer1', label: p1Name || 'Máy in 1' },
-    { id: 'printer2', label: p2Name || 'Máy in 2' },
-  ];
-
-  return (
-    <View style={styles.assignmentBox}>
-      <Text style={styles.label}>{title}</Text>
-      <View style={styles.pickerRow}>
-        {options.map(opt => (
-          <TouchableOpacity
-            key={opt.id || 'null'}
-            style={[styles.pickerBtn, value === opt.id && styles.pickerBtnActive]}
-            onPress={() => setSettings({ [assignmentKey]: opt.id })}
-          >
-            <Text style={[styles.pickerText, value === opt.id && styles.pickerTextActive]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
-
+import { supabase } from '../../src/services/supabase';
+import { SettingsState, useSettingsStore } from '../../src/stores/settingsStore'; // (SỬA) Import 'SettingsState'
 
 export default function SettingsScreen() {
-  const {
-    shopName, address, phone, thankYouMessage, qrCodeData,
-    isVatEnabled, vatPercent, setSettings
-  } = useSettingsStore(useShallow(state => ({
-    shopName: state.shopName,
-    address: state.address,
-    phone: state.phone,
-    thankYouMessage: state.thankYouMessage,
-    qrCodeData: state.qrCodeData,
-    isVatEnabled: state.isVatEnabled,
-    vatPercent: state.vatPercent,
-    setSettings: state.setSettings,
-  })));
+  const [isLoading, setIsLoading] = useState(false);
 
-  const updateSetting = (key: string, value: string | boolean) => {
-    setSettings({ [key]: value });
+  // (SỬA) Lấy đúng các state từ store
+  const {
+    shopName,
+    address,
+    phone,
+    printer1,
+    printer2,
+    kitchenPrinterId,
+    paymentPrinterId,
+    thankYouMessage,
+    qrCodeData,
+    isVatEnabled,
+    vatPercent,
+    setSettings,
+  } = useSettingsStore(useShallow((state) => state));
+
+  const handleLogout = async () => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      Alert.alert('Lỗi', error.message);
+    } else {
+      router.replace('/(auth)/login');
+    }
+    setIsLoading(false);
+  };
+
+  // (SỬA) Sửa lại kiểu (type) của 'key'
+  const updateSetting = (key: keyof SettingsState, value: any) => {
+    // (SỬA) Báo cho TypeScript biết 'key' là một string an toàn
+    setSettings({ [key as string]: value } as Partial<SettingsState>);
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
-      <Text style={styles.title}>Cài đặt Quán ăn</Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.header}>Cài Đặt</Text>
 
-      <CollapsibleSection title="1. Thông tin chung (in trên bill)">
-        <Text style={styles.label}>Tên quán</Text>
-        <TextInput style={styles.input} value={shopName} onChangeText={(text) => updateSetting('shopName', text)} />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Thông tin cửa hàng</Text>
+        <Text style={styles.label}>Tên cửa hàng</Text>
+        <TextInput
+          style={styles.input}
+          value={shopName}
+          onChangeText={(val) => updateSetting('shopName', val)}
+        />
         <Text style={styles.label}>Địa chỉ</Text>
-        <TextInput style={styles.input} value={address} onChangeText={(text) => updateSetting('address', text)} />
+        <TextInput
+          style={styles.input}
+          value={address} // (SỬA)
+          onChangeText={(val) => updateSetting('address', val)} // (SỬA)
+        />
         <Text style={styles.label}>Số điện thoại</Text>
-        <TextInput style={styles.input} value={phone} onChangeText={(text) => updateSetting('phone', text)} keyboardType="phone-pad" />
-        <Text style={styles.label}>Lời cảm ơn (cuối bill)</Text>
-        <TextInput style={styles.input} value={thankYouMessage} onChangeText={(text) => updateSetting('thankYouMessage', text)} />
-        <Text style={styles.label}>Dữ liệu Mã QR Thanh Toán (VietQR)</Text>
-        <TextInput style={[styles.input, { height: 100 }]} placeholder="Dán chuỗi VietQR của bạn vào đây..." value={qrCodeData} onChangeText={(text) => updateSetting('qrCodeData', text)} multiline textAlignVertical="top" />
-      </CollapsibleSection>
+        <TextInput
+          style={styles.input}
+          value={phone} // (SỬA)
+          onChangeText={(val) => updateSetting('phone', val)} // (SỬA)
+          keyboardType="phone-pad"
+        />
+      </View>
 
-      <CollapsibleSection title="2. Thuế & Phí">
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Cài đặt máy in</Text>
+        <Text style={styles.label}>Máy in 1 (IP:PORT)</Text>
+        <TextInput
+          style={styles.input}
+          value={printer1} // (SỬA)
+          onChangeText={(val) => updateSetting('printer1', val)} // (SỬA)
+          autoCapitalize="none"
+        />
+        <Text style={styles.label}>Máy in 2 (IP:PORT)</Text>
+        <TextInput
+          style={styles.input}
+          value={printer2} // (SỬA)
+          onChangeText={(val) => updateSetting('printer2', val)} // (SỬA)
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>Chọn máy in Bếp</Text>
+        <Picker
+          selectedValue={kitchenPrinterId}
+          onValueChange={(itemValue) => updateSetting('kitchenPrinterId', itemValue)}
+        >
+          <Picker.Item label="Dùng máy in 1" value="printer1" />
+          <Picker.Item label="Dùng máy in 2" value="printer2" />
+        </Picker>
+
+        <Text style={styles.label}>Chọn máy in Thanh toán</Text>
+        <Picker
+          selectedValue={paymentPrinterId}
+          onValueChange={(itemValue) => updateSetting('paymentPrinterId', itemValue)}
+        >
+          <Picker.Item label="Dùng máy in 1" value="printer1" />
+          <Picker.Item label="Dùng máy in 2" value="printer2" />
+        </Picker>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Cài đặt hóa đơn</Text>
+        <Text style={styles.label}>Lời cảm ơn</Text>
+        <TextInput
+          style={styles.input}
+          value={thankYouMessage}
+          onChangeText={(val) => updateSetting('thankYouMessage', val)}
+        />
+        <Text style={styles.label}>Nội dung QR Code (Link)</Text>
+        <TextInput
+          style={styles.input}
+          value={qrCodeData}
+          onChangeText={(val) => updateSetting('qrCodeData', val)}
+        />
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Áp dụng thuế (VAT)</Text>
-          <Switch trackColor={{ false: '#767577', true: '#FF6B35' }} thumbColor="#f4f3f4" onValueChange={(value) => updateSetting('isVatEnabled', value)} value={isVatEnabled} />
+          <Text style={styles.label}>Bật VAT</Text>
+          <Switch
+            value={isVatEnabled}
+            onValueChange={(val) => updateSetting('isVatEnabled', val)}
+          />
         </View>
         {isVatEnabled && (
           <>
-            <Text style={styles.label}>Mức thuế (%)</Text>
-            <TextInput style={styles.input} value={vatPercent} onChangeText={(text) => updateSetting('vatPercent', text)} keyboardType="numeric" placeholder="8" />
+            <Text style={styles.label}>Phần trăm VAT (%)</Text>
+            <TextInput
+              style={styles.input}
+              value={vatPercent}
+              onChangeText={(val) => updateSetting('vatPercent', val)}
+              keyboardType="numeric"
+            />
           </>
         )}
-      </CollapsibleSection>
+      </View>
 
-      <CollapsibleSection title="3. Cài đặt Máy in (Nâng cao)" defaultOpen={true}>
-        <Text style={styles.helpText}>
-          Thiết lập máy in nhiệt (thermal printer) kết nối qua mạng LAN/WiFi bằng giao thức ESC/POS.
-        </Text>
-        
-        {/* Cấu hình 2 máy in */}
-        <PrinterSettings printerKey="printer1" />
-        <PrinterSettings printerKey="printer2" />
-
-        <View style={styles.separator} />
-
-        {/* Phân công máy in */}
-        <PrinterAssignment title="Chức năng In Bếp" assignmentKey="kitchenPrinterId" />
-        <PrinterAssignment title="Chức năng In Thanh Toán" assignmentKey="paymentPrinterId" />
-
-      </CollapsibleSection>
+      <View style={styles.section}>
+        <Button
+          title={isLoading ? 'Đang đăng xuất...' : 'Đăng Xuất'}
+          onPress={handleLogout}
+          color="#e74c3c"
+          disabled={isLoading}
+        />
+      </View>
     </ScrollView>
   );
 }
 
-// (SỬA) Cập nhật styles
+// (SỬA) Styles rút gọn cho nhất quán
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9f9f9', padding: 16 },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#FF6B35', textAlign: 'center', marginBottom: 20 },
-  
-  // (MỚI) Styles cho Accordion
-  formContainer: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, elevation: 2, marginBottom: 16 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  sectionTitle: { fontSize: 20, fontWeight: '600', color: '#333' },
-  sectionContent: { paddingTop: 16 },
-
-  label: { fontSize: 16, fontWeight: '600', marginBottom: 8, color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
+  container: {
+    flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    backgroundColor: '#f9f9f9',
+  },
+  header: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FF6B35',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  section: {
     backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  label: {
     fontSize: 16,
+    color: '#555',
+    marginBottom: 8,
   },
-  helpText: { fontSize: 14, color: '#7f8c8d', fontStyle: 'italic', lineHeight: 20, marginBottom: 16 },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  
-  // (MỚI) Styles cho Máy in
-  printerBox: { backgroundColor: '#fdfdfd', borderWidth: 1, borderColor: '#eee', padding: 12, borderRadius: 8, marginBottom: 16 },
-  separator: { height: 1, backgroundColor: '#eee', marginVertical: 16 },
-  assignmentBox: { marginBottom: 12 },
-  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pickerBtn: {
+  input: {
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 12,
   },
-  pickerBtnActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
-  pickerText: { color: '#333', fontWeight: '500' },
-  pickerTextActive: { color: '#fff', fontWeight: '700' },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
 });
