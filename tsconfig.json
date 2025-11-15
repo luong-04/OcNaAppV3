@@ -6,7 +6,11 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    // SỬA 1: Thêm cờ 'jsx' để hiểu file .tsx
+    "jsx": "react-native",
+    // SỬA 2: Thêm cờ 'esModuleInterop' để sửa lỗi import React
+    "esModuleInterop": true
   },
   "include": [
     "**/*.ts",

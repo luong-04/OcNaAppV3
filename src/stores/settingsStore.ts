@@ -1,75 +1,62 @@
-// src/stores/settingsStore.ts (SỬA TOÀN BỘ)
+// File: src/stores/settingsStore.ts
+// (SỬA: Đổi printer1/printer2 thành string và export SettingsState)
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-// (MỚI) Định nghĩa cấu hình 1 máy in
-interface PrinterConfig {
-  name: string; // Tên gợi nhớ (VD: Bếp, Quầy)
-  ip: string;   // IP máy in
-  port: string; // Port (thường là 9100)
-}
+// SỬA: Xóa bỏ 'PrinterConfig', vì chúng ta dùng string
+// type PrinterConfig = {
+//   name: string;
+//   ip: string;
+//   port: string;
+// };
 
-interface SettingsState {
+// SỬA: Thêm 'export' để settings.tsx có thể import
+export interface SettingsState {
   shopName: string;
   address: string;
   phone: string;
+  
+  // SỬA: Đổi printer1/printer2 từ PrinterConfig thành string
+  printer1: string; // Sẽ lưu dạng "192.168.1.100:9100"
+  printer2: string; // Sẽ lưu dạng "192.168.1.101:9100"
+  
+  kitchenPrinterId: 'printer1' | 'printer2' | null;
+  paymentPrinterId: 'printer1' | 'printer2' | null;
   thankYouMessage: string;
   qrCodeData: string;
   isVatEnabled: boolean;
-  vatPercent: string;
-  
-  // (MỚI) Quản lý 2 máy in
-  printer1: PrinterConfig;
-  printer2: PrinterConfig;
-  
-  // (MỚI) Phân công máy in
-  // null = dùng in mặc định (PDF/Expo Print)
-  // 'printer1' = dùng Máy in 1
-  // 'printer2' = dùng Máy in 2
-  kitchenPrinterId: 'printer1' | 'printer2' | null;
-  paymentPrinterId: 'printer1' | 'printer2' | null;
+  vatPercent: number;
 
+  // SỬA: setSettings để nhận Partial (bản cập nhật 1 phần)
   setSettings: (settings: Partial<SettingsState>) => void;
-  setPrinter: (key: 'printer1' | 'printer2', config: PrinterConfig) => void;
 }
-
-const defaultPrinter: PrinterConfig = { name: '', ip: '', port: '9100' };
 
 export const useSettingsStore = create(
   persist<SettingsState>(
     (set) => ({
-      // Giá trị mặc định
-      shopName: 'Ốc Na',
-      address: '123 Đường ABC, Quận 1, TP. HCM',
-      phone: '0909 123 456',
-      thankYouMessage: 'Cảm ơn quý khách và hẹn gặp lại!',
-      qrCodeData: '', 
-      isVatEnabled: false, 
-      vatPercent: '8',    
+      shopName: 'Ốc Na V2',
+      address: '123 Đường ABC, Q1, TPHCM',
+      phone: '0901234567',
       
-      // (MỚI) Cài đặt máy in
-      printer1: { ...defaultPrinter, name: 'Máy in 1' },
-      printer2: { ...defaultPrinter, name: 'Máy in 2' },
-      kitchenPrinterId: null, // Mặc định dùng in PDF
-      paymentPrinterId: null, // Mặc định dùng in PDF
-
-      setSettings: (settings) =>
-        set((state) => ({
-          ...state,
-          ...settings,
-        })),
+      // SỬA: Đổi giá trị mặc định thành chuỗi rỗng
+      printer1: '',
+      printer2: '',
       
-      // (MỚI) Hàm cập nhật máy in riêng
-      setPrinter: (key, config) =>
-        set((state) => ({
-          ...state,
-          [key]: config,
-        })),
+      kitchenPrinterId: null,
+      paymentPrinterId: null,
+      thankYouMessage: 'Cảm ơn quý khách!',
+      qrCodeData: '',
+      isVatEnabled: false,
+      vatPercent: 10,
+      
+      // SỬA: Logic setSettings
+      setSettings: (settings) => set((state) => ({ ...state, ...settings })),
     }),
     {
-      name: 'ocna-settings-storage',
-      storage: createJSONStorage(() => AsyncStorage), 
+      name: 'settings-storage',
+      storage: createJSONStorage(() => AsyncStorage),
     }
   )
 );

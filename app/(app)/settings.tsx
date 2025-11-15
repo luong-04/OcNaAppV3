@@ -1,9 +1,8 @@
 // File: app/(app)/settings.tsx
-// (SỬA: Thêm mục ĐÓNG/MỞ và GOM NHÓM QR/Lời cảm ơn)
+// (SỬA: Dùng code mới nhất, tương thích với settingsStore.ts)
 
 import { Picker } from '@react-native-picker/picker';
-// SỬA: Import thêm useState và Pressable
-import { ChevronDown, ChevronRight } from 'lucide-react-native'; // Icon cho đẹp
+import { ChevronDown, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Button, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
@@ -14,7 +13,7 @@ import { SettingsState, useSettingsStore } from '../../src/stores/settingsStore'
 type CollapsibleSectionProps = {
   title: string;
   children: React.ReactNode;
-  startOpen?: boolean; // Mục đầu tiên sẽ mở sẵn
+  startOpen?: boolean;
 };
 
 const CollapsibleSection = ({ title, children, startOpen = false }: CollapsibleSectionProps) => {
@@ -26,7 +25,6 @@ const CollapsibleSection = ({ title, children, startOpen = false }: CollapsibleS
         {isOpen ? <ChevronDown color="#555" /> : <ChevronRight color="#555" />}
       </Pressable>
       
-      {/* Chỉ hiển thị nội dung nếu isOpen là true */}
       {isOpen && (
         <View style={styles.collapsibleContent}>
           {children}
@@ -41,6 +39,7 @@ const CollapsibleSection = ({ title, children, startOpen = false }: CollapsibleS
 export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
+  // SỬA: Dùng useShallow để lấy state mới nhất
   const {
     shopName, address, phone,
     printer1, printer2, kitchenPrinterId, paymentPrinterId,
@@ -59,6 +58,7 @@ export default function SettingsScreen() {
     setIsLoading(false);
   };
 
+  // SỬA: Dùng 'setSettings' (từ store mới)
   const updateSetting = (key: keyof SettingsState, value: any) => {
     setSettings({ [key as string]: value } as Partial<SettingsState>);
   };
@@ -66,43 +66,40 @@ export default function SettingsScreen() {
   return (
     <ScrollView 
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 100 }} // Giữ lại để không che nút
+      contentContainerStyle={{ paddingBottom: 100 }} // Chống che nút
     >
       <Text style={styles.header}>Cài Đặt</Text>
 
-      {/* SỬA: Dùng CollapsibleSection và gom nhóm */}
       <CollapsibleSection title="Thông tin quán & Hóa đơn" startOpen={true}>
         <Text style={styles.label}>Tên cửa hàng</Text>
         <TextInput
           style={styles.input}
-          value={shopName}
+          value={shopName} // OK: string
           onChangeText={(val) => updateSetting('shopName', val)}
         />
         <Text style={styles.label}>Địa chỉ</Text>
         <TextInput
           style={styles.input}
-          value={address}
+          value={address} // OK: string
           onChangeText={(val) => updateSetting('address', val)}
         />
         <Text style={styles.label}>Số điện thoại</Text>
         <TextInput
           style={styles.input}
-          value={phone}
+          value={phone} // OK: string
           onChangeText={(val) => updateSetting('phone', val)}
           keyboardType="phone-pad"
         />
-        
-        {/* SỬA: Gom nhóm Lời cảm ơn và QR vào đây */}
         <Text style={styles.label}>Lời cảm ơn (trên bill)</Text>
         <TextInput
           style={styles.input}
-          value={thankYouMessage}
+          value={thankYouMessage} // OK: string
           onChangeText={(val) => updateSetting('thankYouMessage', val)}
         />
         <Text style={styles.label}>Nội dung QR Code (Link trên bill)</Text>
         <TextInput
           style={styles.input}
-          value={qrCodeData}
+          value={qrCodeData} // OK: string
           onChangeText={(val) => updateSetting('qrCodeData', val)}
         />
       </CollapsibleSection>
@@ -111,22 +108,25 @@ export default function SettingsScreen() {
         <Text style={styles.label}>Máy in 1 (IP:PORT)</Text>
         <TextInput
           style={styles.input}
-          value={printer1}
+          value={printer1} // SỬA: Giờ đã là string, không còn lỗi 2769
           onChangeText={(val) => updateSetting('printer1', val)}
           autoCapitalize="none"
+          placeholder="192.168.1.100:9100"
         />
         <Text style={styles.label}>Máy in 2 (IP:PORT)</Text>
         <TextInput
           style={styles.input}
-          value={printer2}
+          value={printer2} // SỬA: Giờ đã là string, không còn lỗi 2769
           onChangeText={(val) => updateSetting('printer2', val)}
           autoCapitalize="none"
+          placeholder="192.168.1.101:9100"
         />
         <Text style={styles.label}>Chọn máy in Bếp</Text>
         <Picker
           selectedValue={kitchenPrinterId}
           onValueChange={(itemValue) => updateSetting('kitchenPrinterId', itemValue)}
         >
+          <Picker.Item label="Chưa chọn" value={null} />
           <Picker.Item label="Dùng máy in 1" value="printer1" />
           <Picker.Item label="Dùng máy in 2" value="printer2" />
         </Picker>
@@ -135,6 +135,7 @@ export default function SettingsScreen() {
           selectedValue={paymentPrinterId}
           onValueChange={(itemValue) => updateSetting('paymentPrinterId', itemValue)}
         >
+          <Picker.Item label="Chưa chọn" value={null} />
           <Picker.Item label="Dùng máy in 1" value="printer1" />
           <Picker.Item label="Dùng máy in 2" value="printer2" />
         </Picker>
@@ -153,7 +154,7 @@ export default function SettingsScreen() {
             <Text style={styles.label}>Phần trăm VAT (%)</Text>
             <TextInput
               style={styles.input}
-              value={String(vatPercent)} 
+              value={String(vatPercent)} // SỬA: TextInput value phải là string
               onChangeText={(val) => updateSetting('vatPercent', Number(val) || 0)} 
               keyboardType="numeric"
             />
@@ -161,7 +162,6 @@ export default function SettingsScreen() {
         )}
       </CollapsibleSection>
 
-      {/* Nút Đăng xuất để bên ngoài, không cần đóng/mở */}
       <View style={styles.logoutSection}>
         <Button
           title={isLoading ? 'Đang đăng xuất...' : 'Đăng Xuất'}
@@ -174,7 +174,7 @@ export default function SettingsScreen() {
   );
 }
 
-// SỬA: Thêm style cho Collapsible và đổi tên `section`
+// (SỬA: Stylesheet mới nhất cho Collapsible)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -189,22 +189,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  section: { // Đây là cái khung bao ngoài
+  section: {
     backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 20,
     elevation: 2,
-    overflow: 'hidden', // Quan trọng để bo góc
+    overflow: 'hidden',
   },
-  collapsibleHeader: { // Tiêu đề (để bấm)
+  collapsibleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
   },
-  collapsibleContent: { // Nội dung (bị ẩn/hiện)
+  collapsibleContent: {
     padding: 16,
-    paddingTop: 0, // Sát với header
+    paddingTop: 0,
   },
   sectionTitle: {
     fontSize: 20,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
   },
-  logoutSection: { // Tách riêng nút Đăng xuất
+  logoutSection: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
